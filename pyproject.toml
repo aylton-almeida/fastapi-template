@@ -20,6 +20,7 @@ SQLAlchemy = { version = "^2.0", extras = ["asyncio"] }
 alembic = "^1.8.1"
 psycopg2-binary = "^2.9.9"
 asyncpg = "^0.29.0"
+pytest-asyncio = "^0.23.6"
 
 [tool.poetry.group.dev]
 optional = true
@@ -40,6 +41,7 @@ markers = [
     "unit: mark a test as a unit test.",
     "integration: mark test as an integration test.",
 ]
+asyncio_mode = "auto"
 
 [tool.black]
 line_length = 120
