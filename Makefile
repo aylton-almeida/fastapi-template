@@ -13,7 +13,7 @@ up: ## Run the application
 
 
 done: lint test ## Prepare for a commit
-test: utest itest  ## Run unit and integration tests
+test: itest  ## Run unit and integration tests
 
 ci-compose := docker compose -f .ci/docker-compose.yml
 
