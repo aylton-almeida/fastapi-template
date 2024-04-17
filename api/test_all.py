@@ -44,7 +44,6 @@ def test_api_create():
 def test_api_get_right():
     time.sleep(1)
     client = TestClient(app)
-    response = client.post("/create/testkey?value=testvalue")
 
     response = client.get("/get/testkey")
 
@@ -57,7 +56,6 @@ def test_api_get_right():
 def test_api_wrong():
     time.sleep(1)
     client = TestClient(app)
-    response = client.post("/create/testkey?value=testvalue")
 
     response = client.get("/get/wrong")
     assert response.status_code == 404
