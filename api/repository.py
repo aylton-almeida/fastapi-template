@@ -12,7 +12,7 @@ SQL_BASE = declarative_base()
 
 @lru_cache(maxsize=None)
 def get_engine(db_string: str):
-    return create_engine(db_string.replace("+asyncpg", ""), pool_pre_ping=True)
+    return create_engine(db_string, pool_pre_ping=True)
 
 
 class TodoInDB(SQL_BASE):  # type: ignore
