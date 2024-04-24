@@ -1,27 +1,30 @@
+from __future__ import annotations
+
 import os
 from functools import lru_cache
 from typing import Iterator, List, Optional
 
 from pydantic import BaseModel
-from sqlalchemy import Boolean, Column, Integer, String, create_engine
+from sqlalchemy import Boolean, Column, Integer, String, select
 from sqlalchemy.exc import DatabaseError
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import Mapped, mapped_column, Session, declarative_base, sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 SQL_BASE = declarative_base()
 
 
 @lru_cache(maxsize=None)
 def get_engine(db_string: str):
-    return create_engine(db_string.replace("+asyncpg", ""), pool_pre_ping=True)
+    return create_async_engine(db_string, pool_pre_ping=True)
 
 
 class TodoInDB(SQL_BASE):  # type: ignore
     __tablename__ = "todo"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    key = Column(String(length=128), nullable=False, unique=True)
-    value = Column(String(length=128), nullable=False)
-    done = Column(Boolean, default=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(length=128), nullable=False, unique=True)
+    value: Mapped[str] = mapped_column(String(length=128), nullable=False)
+    done: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Todo(BaseModel):
@@ -38,95 +41,80 @@ class TodoFilter(BaseModel):
 
 
 class TodoRepository:  # Interface
-    def __enter__(self):
+    async def __aenter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def save(self, todo: Todo) -> None:
+    async def save(self, todo: Todo) -> None:
         raise NotImplementedError()
 
-    def get_by_key(self, key: str) -> Optional[Todo]:
+    async def get_by_key(self, key: str) -> Optional[Todo]:
         raise NotImplementedError()
 
-    def get(self, todo_filter: TodoFilter) -> List[Todo]:
+    async def get(self, todo_filter: TodoFilter) -> List[Todo]:
         raise NotImplementedError()
-
-
-class InMemoryTodoRepository:  # In-memory implementation of interface
-    def __init__(self):
-        self.data = {}
-
-    def save(self, todo: Todo) -> None:
-        self.data[todo.key] = todo
-
-    def get_by_key(self, key: str) -> Optional[Todo]:
-        return self.data.get(key)
-
-    def get(self, todo_filter: TodoFilter) -> List[Todo]:
-        all_matching_todos = filter(
-            lambda todo: (not todo_filter.key_contains or todo_filter.key_contains in todo.key)
-            and (not todo_filter.value_contains or todo_filter.value_contains in todo.value)
-            and (not todo_filter.done or todo_filter.done == todo.done),
-            self.data.values(),
-        )
-
-        return list(all_matching_todos)[: todo_filter.limit]
 
 
 class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
     def __init__(self, session):
         self._session: Session = session
 
-    def __exit__(self, exc_type, exc_value: str, exc_traceback: str) -> None:
+    async def __aexit__(self, exc_type, exc_value: str, exc_traceback: str) -> None:
         if any([exc_type, exc_value, exc_traceback]):
-            self._session.rollback()
+            await self._session.rollback()
             return
 
         try:
-            self._session.commit()
+            await self._session.commit()
         except DatabaseError as e:
-            self._session.rollback()
+            await self._session.rollback()
             raise e
 
-    def save(self, todo: Todo) -> None:
+    async def save(self, todo: Todo) -> None:
         self._session.add(TodoInDB(key=todo.key, value=todo.value))
 
-    def get_by_key(self, key: str) -> Optional[Todo]:
-        instance = self._session.query(TodoInDB).filter(TodoInDB.key == key).first()
+    async def get_by_key(self, key: str) -> Optional[Todo]:
+        result = await self._session.execute(
+            select(TodoInDB).where(TodoInDB.key == key)
+        )
+        instance = result.scalars().first()
 
         if instance:
             return Todo(key=instance.key, value=instance.value, done=instance.done)
 
         return None
 
-    def get(self, todo_filter: TodoFilter) -> List[Todo]:
-        query = self._session.query(TodoInDB)
+    async def get(self, todo_filter: TodoFilter) -> List[Todo]:
+        stmt = select(TodoInDB)
 
         if todo_filter.key_contains is not None:
-            query = query.filter(TodoInDB.key.contains(todo_filter.key_contains))
+            stmt = stmt.where(TodoInDB.key.contains(todo_filter.key_contains))
 
         if todo_filter.value_contains is not None:
-            query = query.filter(TodoInDB.value.contains(todo_filter.value_contains))
+            stmt = stmt.where(TodoInDB.value.contains(todo_filter.value_contains))
 
         if todo_filter.done is not None:
-            query = query.filter(TodoInDB.done == todo_filter.done)
+            stmt = stmt.where(TodoInDB.done == todo_filter.done)
 
         if todo_filter.limit is not None:
-            query = query.limit(todo_filter.limit)
+            stmt = stmt.limit(todo_filter.limit)
 
-        return [Todo(key=todo.key, value=todo.value, done=todo.done) for todo in query]
+        result = await self._session.execute(stmt)
+
+        return [Todo(key=todo.key, value=todo.value, done=todo.done) for todo in result.scalars()]
 
 
-def create_todo_repository() -> Iterator[TodoRepository]:
-    session = sessionmaker(bind=get_engine(os.getenv("DB_STRING")))()
-    todo_repository = SQLTodoRepository(session)
+async def create_todo_repository() -> Iterator[TodoRepository]:
+    async with AsyncSession(get_engine(os.getenv("DB_STRING"))) as session:
+        todo_repository = SQLTodoRepository(session)
 
-    try:
-        yield todo_repository
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
+        try:
+            yield todo_repository
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
