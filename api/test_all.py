@@ -1,9 +1,11 @@
 import os
 import time
+from typing import Generator
 
 import alembic.config
 import pytest
 from sqlalchemy.exc import DataError, IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from starlette.testclient import TestClient
 
@@ -15,31 +17,32 @@ from api.repository import (
     Todo,
     TodoFilter,
     TodoRepository,
-    get_engine,
 )
 
 
 @pytest.fixture
-def fake_todo_repository():
+def fake_todo_repository() -> InMemoryTodoRepository:
     return InMemoryTodoRepository()
 
 
 @pytest.fixture
-def todo_repository():
+async def todo_repository() -> Generator[SQLTodoRepository, None, None]:
     time.sleep(1)
     alembicArgs = ["--raiseerr", "upgrade", "head"]
     alembic.config.main(argv=alembicArgs)
 
-    engine = get_engine(os.getenv("DB_STRING"))
-    session = sessionmaker(bind=engine)()
+    engine = create_async_engine(os.getenv("DB_STRING"))
+    async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    session = async_session()
 
     yield SQLTodoRepository(session)
 
-    session.close()
+    await session.close()
 
-    sessionmaker(bind=engine, autocommit=True)().execute(
-        ";".join([f"TRUNCATE TABLE {t} CASCADE" for t in SQL_BASE.metadata.tables.keys()])
-    )
+    async with async_session() as session:
+        await session.execute(
+            ";".join([f"TRUNCATE TABLE {t} CASCADE" for t in SQL_BASE.metadata.tables.keys()])
+        )
 
 
 @pytest.mark.unit
@@ -48,61 +51,61 @@ def test_example_unit_test():
 
 
 @pytest.mark.integration
-def test_contract_test(fake_todo_repository: TodoRepository, todo_repository: TodoRepository):
+async def test_contract_test(fake_todo_repository: TodoRepository, todo_repository: TodoRepository):
     """See https://martinfowler.com/bliki/ContractTest.html"""
 
     todo = Todo(key="testkey", value="testvalue")
 
     for repo in [fake_todo_repository, todo_repository]:
-        repo.save(todo)
+        await repo.save(todo)
 
-        new_todo = repo.get_by_key("testkey")
+        new_todo = await repo.get_by_key("testkey")
         assert new_todo and new_todo.value == "testvalue"
 
-        assert len(repo.get(TodoFilter(key_contains="e"))) == 1
-        assert len(repo.get(TodoFilter(key_contains="e", limit=0))) == 0
-        assert len(repo.get(TodoFilter(key_contains="v"))) == 0
+        assert len(await repo.get(TodoFilter(key_contains="e"))) == 1
+        assert len(await repo.get(TodoFilter(key_contains="e", limit=0))) == 0
+        assert len(await repo.get(TodoFilter(key_contains="v"))) == 0
 
-        assert len(repo.get(TodoFilter(value_contains="v"))) == 1
-        assert len(repo.get(TodoFilter(value_contains="e", limit=0))) == 0
-        assert len(repo.get(TodoFilter(value_contains="k"))) == 0
+        assert len(await repo.get(TodoFilter(value_contains="v"))) == 1
+        assert len(await repo.get(TodoFilter(value_contains="e", limit=0))) == 0
+        assert len(await repo.get(TodoFilter(value_contains="k"))) == 0
 
 
 @pytest.mark.integration
-def test_repository(todo_repository: SQLTodoRepository):
-    with todo_repository as r:
-        r.save(Todo(key="testkey", value="testvalue"))
+async def test_repository(todo_repository: SQLTodoRepository):
+    async with todo_repository as r:
+        await r.save(Todo(key="testkey", value="testvalue"))
 
-    todo = r.get_by_key("testkey")
+    todo = await r.get_by_key("testkey")
     assert todo.value == "testvalue"
 
     with pytest.raises(IntegrityError):
-        with todo_repository as r:
-            r.save(Todo(key="testkey", value="not allowed: unique todo keys!"))
+        async with todo_repository as r:
+            await r.save(Todo(key="testkey", value="not allowed: unique todo keys!"))
 
     with pytest.raises(DataError):
-        with todo_repository as r:
-            r.save(Todo(key="too long", value=129 * "x"))
+        async with todo_repository as r:
+            await r.save(Todo(key="too long", value=129 * "x"))
 
 
 @pytest.mark.integration
-def test_repository_filter(todo_repository: SQLTodoRepository):
-    with todo_repository as repo:
-        repo.save(Todo(key="testkey", value="testvalue"))
-        repo.save(Todo(key="abcde", value="v"))
+async def test_repository_filter(todo_repository: SQLTodoRepository):
+    async with todo_repository as repo:
+        await repo.save(Todo(key="testkey", value="testvalue"))
+        await repo.save(Todo(key="abcde", value="v"))
 
-    todos = repo.get(TodoFilter(key_contains="test"))
+    todos = await repo.get(TodoFilter(key_contains="test"))
     assert len(todos) == 1
     assert todos[0].value == "testvalue"
 
-    todos = repo.get(TodoFilter(key_contains="abcde"))
+    todos = await repo.get(TodoFilter(key_contains="abcde"))
     assert len(todos) == 1
     assert todos[0].value == "v"
 
-    assert len(repo.get(TodoFilter(key_contains="e"))) == 2
-    assert len(repo.get(TodoFilter(key_contains="e", limit=1))) == 1
-    assert len(repo.get(TodoFilter(value_contains="v"))) == 2
-    assert len(repo.get(TodoFilter(done=True))) == 0
+    assert len(await repo.get(TodoFilter(key_contains="e"))) == 2
+    assert len(await repo.get(TodoFilter(key_contains="e", limit=1))) == 1
+    assert len(await repo.get(TodoFilter(value_contains="v"))) == 2
+    assert len(await repo.get(TodoFilter(done=True))) == 0
 
 
 @pytest.mark.integration
