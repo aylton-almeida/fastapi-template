@@ -6,11 +6,13 @@ import alembic.config
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.future import select
+from sqlalchemy.orm import sessionmaker, selectinload
 from starlette.testclient import TestClient
 
 from api.main import app
-from api.repository import SQL_BASE, SQLTodoRepository, Todo, TodoFilter, TodoRepository, get_engine
+from api.repository import SQL_BASE, SQLTodoRepository, Todo, TodoFilter, TodoRepository
 
 
 class InMemoryTodoRepository:  # In-memory implementation of interface
@@ -45,14 +47,13 @@ async def todo_repository():
     alembicArgs = ["--raiseerr", "upgrade", "head"]
     alembic.config.main(argv=alembicArgs)
 
-    async with AsyncSession(get_engine(os.getenv("DB_STRING", ""))) as session:
+    engine = create_async_engine(os.getenv("DB_STRING", ""))
 
-        yield SQLTodoRepository(session)
+    async with engine.begin() as conn:
+        yield SQLTodoRepository(conn)
 
-        await session.close()
-
-        await session.execute(text(";".join([f"TRUNCATE TABLE {t} CASCADE" for t in SQL_BASE.metadata.tables.keys()])))
-        await session.commit()
+        await conn.execute(text(";".join([f"TRUNCATE TABLE {t} CASCADE" for t in SQL_BASE.metadata.tables.keys()])))
+        await conn.commit()
 
 
 @pytest.mark.unit
