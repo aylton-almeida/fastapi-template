@@ -9,13 +9,14 @@ from sqlalchemy import Boolean, Column, Integer, String, select
 from sqlalchemy.exc import DatabaseError
 from sqlalchemy.orm import Mapped, mapped_column, Session, declarative_base, sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.pool import NullPool
 
 SQL_BASE = declarative_base()
 
 
 @lru_cache(maxsize=None)
 def get_engine(db_string: str):
-    return create_async_engine(db_string, pool_pre_ping=True)
+    return create_async_engine(db_string, pool_pre_ping=True, poolclass=NullPool)
 
 
 class TodoInDB(SQL_BASE):  # type: ignore
