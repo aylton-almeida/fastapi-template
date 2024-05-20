@@ -57,11 +57,32 @@ class TodoRepository:  # Interface
         raise NotImplementedError()
 
 
+class InMemoryTodoRepository:  # In-memory implementation of interface
+    def __init__(self):
+        self.data = {}
+
+    async def save(self, todo: Todo) -> None:
+        self.data[todo.key] = todo
+
+    async def get_by_key(self, key: str) -> Optional[Todo]:
+        return self.data.get(key)
+
+    async def get(self, todo_filter: TodoFilter) -> List[Todo]:
+        all_matching_todos = filter(
+            lambda todo: (not todo_filter.key_contains or todo_filter.key_contains in todo.key)
+            and (not todo_filter.value_contains or todo_filter.value_contains in todo.value)
+            and (not todo_filter.done or todo_filter.done == todo.done),
+            self.data.values(),
+        )
+
+        return list(all_matching_todos)[: todo_filter.limit]
+
+
 class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
-    def __init__(self, session):
+    def __init__(self, session: AsyncSession):
         self._session: AsyncSession = session
 
-    async def __aexit__(self, exc_type, exc_value: str, exc_traceback: str) -> None:
+    async def __aexit__(self, exc_type: Any, exc_value: str, exc_traceback: str) -> None:
         if any([exc_type, exc_value, exc_traceback]):
             await self._session.rollback()
             return

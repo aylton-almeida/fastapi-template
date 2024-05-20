@@ -1,6 +1,5 @@
 import os
 import time
-from typing import List, Optional
 
 import alembic.config
 import pytest
@@ -10,28 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.testclient import TestClient
 
 from api.main import app
-from api.repository import SQL_BASE, SQLTodoRepository, Todo, TodoFilter, TodoRepository, get_engine
-
-
-class InMemoryTodoRepository:  # In-memory implementation of interface
-    def __init__(self):
-        self.data = {}
-
-    async def save(self, todo: Todo) -> None:
-        self.data[todo.key] = todo
-
-    async def get_by_key(self, key: str) -> Optional[Todo]:
-        return self.data.get(key)
-
-    async def get(self, todo_filter: TodoFilter) -> List[Todo]:
-        all_matching_todos = filter(
-            lambda todo: (not todo_filter.key_contains or todo_filter.key_contains in todo.key)
-            and (not todo_filter.value_contains or todo_filter.value_contains in todo.value)
-            and (not todo_filter.done or todo_filter.done == todo.done),
-            self.data.values(),
-        )
-
-        return list(all_matching_todos)[: todo_filter.limit]
+from api.repository import (
+    SQL_BASE,
+    InMemoryTodoRepository,
+    SQLTodoRepository,
+    Todo,
+    TodoFilter,
+    TodoRepository,
+    get_engine,
+)
 
 
 @pytest.fixture
