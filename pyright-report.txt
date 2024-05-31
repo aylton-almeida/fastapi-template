@@ -1,0 +1,22 @@
+No configuration file found.
+pyproject.toml file found at /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template.
+Loading pyproject.toml file at /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/pyproject.toml
+Assuming Python platform Linux
+Searching for source files
+Found 6 source files
+pyright 1.1.303
+/home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/main.py
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/main.py:15:29 - error: Argument of type "str | None" cannot be assigned to parameter "url" of type "str | URL" in function "__init__"
+    Type "str | None" cannot be assigned to type "str | URL"
+      Type "None" cannot be assigned to type "str | URL"
+        Type "None" cannot be assigned to type "str"
+        Type "None" cannot be assigned to type "URL" (reportGeneralTypeIssues)
+/home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:67:19 - error: "None" is not awaitable (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:71:19 - error: "None" is not awaitable (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:73:19 - error: "None" is not awaitable (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:80:24 - error: "Result[Tuple[TodoInDB]]" is not awaitable (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:105:24 - error: "Result[Tuple[TodoInDB]]" is not awaitable (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:110:39 - error: Return type of async generator function must be "AsyncGenerator" or "AsyncIterable" (reportGeneralTypeIssues)
+7 errors, 0 warnings, 0 informations 
+Completed in 2.597sec
