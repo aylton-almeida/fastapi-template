@@ -1,0 +1,41 @@
+No configuration file found.
+pyproject.toml file found at /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template.
+Loading pyproject.toml file at /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/pyproject.toml
+Assuming Python platform Linux
+Searching for source files
+Found 6 source files
+pyright 1.1.303
+/home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/main.py
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/main.py:16:29 - error: Argument of type "str | None" cannot be assigned to parameter "url" of type "str | URL" in function "__init__"
+    Type "str | None" cannot be assigned to type "str | URL"
+      Type "None" cannot be assigned to type "str | URL"
+        Type "None" cannot be assigned to type "str"
+        Type "None" cannot be assigned to type "URL" (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/main.py:28:67 - error: Argument of type "bool" cannot be assigned to parameter "whereclause" of type "_ColumnExpressionArgument[bool]" in function "where"
+    Type "bool" cannot be assigned to type "_ColumnExpressionArgument[bool]"
+      "bool" is incompatible with "ColumnElement[bool]"
+      "bool" is incompatible with protocol "_HasClauseElement[bool]"
+        "__clause_element__" is not present
+      "bool" is incompatible with "SQLCoreOperations[bool]"
+      "bool" is incompatible with "ExpressionElementRole[bool]"
+      Type "bool" cannot be assigned to type "() -> ColumnElement[bool]"
+      "bool" is incompatible with "LambdaElement" (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/main.py:40:67 - error: Argument of type "bool" cannot be assigned to parameter "whereclause" of type "_ColumnExpressionArgument[bool]" in function "where"
+    Type "bool" cannot be assigned to type "_ColumnExpressionArgument[bool]"
+      "bool" is incompatible with "ColumnElement[bool]"
+      "bool" is incompatible with protocol "_HasClauseElement[bool]"
+        "__clause_element__" is not present
+      "bool" is incompatible with "SQLCoreOperations[bool]"
+      "bool" is incompatible with "ExpressionElementRole[bool]"
+      Type "bool" cannot be assigned to type "() -> ColumnElement[bool]"
+      "bool" is incompatible with "LambdaElement" (reportGeneralTypeIssues)
+/home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:127:39 - error: Return type of async generator function must be "AsyncGenerator" or "AsyncIterable" (reportGeneralTypeIssues)
+/home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/test_all.py
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/test_all.py:48:29 - error: Argument of type "Coroutine[Any, Any, Any]" cannot be assigned to parameter "bind" of type "_AsyncSessionBind | None" in function "__init__"
+    Type "Coroutine[Any, Any, Any]" cannot be assigned to type "_AsyncSessionBind | None"
+      "Coroutine[Any, Any, Any]" is incompatible with "AsyncEngine"
+      "Coroutine[Any, Any, Any]" is incompatible with "AsyncConnection"
+      Type cannot be assigned to type "None" (reportGeneralTypeIssues)
+5 errors, 0 warnings, 0 informations 
+Completed in 2.642sec
