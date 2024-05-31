@@ -1,0 +1,38 @@
+No configuration file found.
+pyproject.toml file found at /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template.
+Loading pyproject.toml file at /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/pyproject.toml
+Assuming Python platform Linux
+Searching for source files
+Found 6 source files
+pyright 1.1.303
+/home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/main.py
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/main.py:15:29 - error: Argument of type "str | None" cannot be assigned to parameter "url" of type "str | URL" in function "__init__"
+    Type "str | None" cannot be assigned to type "str | URL"
+      Type "None" cannot be assigned to type "str | URL"
+        Type "None" cannot be assigned to type "str"
+        Type "None" cannot be assigned to type "URL" (reportGeneralTypeIssues)
+/home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:67:19 - error: "None" is not awaitable (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:71:19 - error: "None" is not awaitable (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:73:19 - error: "None" is not awaitable (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:80:24 - error: "Result[Tuple[TodoInDB]]" is not awaitable (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:105:24 - error: "Result[Tuple[TodoInDB]]" is not awaitable (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:110:39 - error: Return type of async generator function must be "AsyncGenerator" or "AsyncIterable" (reportGeneralTypeIssues)
+/home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/test_all.py
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/test_all.py:17:5 - error: "InMemoryTodoRepository" is unknown import symbol (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/test_all.py:36:34 - error: Argument of type "str | None" cannot be assigned to parameter "url" of type "str | URL" in function "create_async_engine"
+    Type "str | None" cannot be assigned to type "str | URL"
+      Type "None" cannot be assigned to type "str | URL"
+        Type "None" cannot be assigned to type "str"
+        Type "None" cannot be assigned to type "URL" (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/test_all.py:37:34 - error: Argument of type "AsyncEngine" cannot be assigned to parameter "bind" of type "_SessionBind | None" in function "__init__"
+    Type "AsyncEngine" cannot be assigned to type "_SessionBind | None"
+      "AsyncEngine" is incompatible with "Engine"
+      "AsyncEngine" is incompatible with "Connection"
+      Type cannot be assigned to type "None" (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/test_all.py:31:32 - error: Return type of async generator function must be "AsyncGenerator" or "AsyncIterable" (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/test_all.py:42:16 - error: Object of type "AbstractContextManager[Unknown]" cannot be used with "with" because it does not implement __aenter__ (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/test_all.py:42:16 - error: Object of type "AbstractContextManager[Unknown]" cannot be used with "with" because it does not implement __aexit__ (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/test_all.py:80:17 - error: "value" is not a known member of "None" (reportOptionalMemberAccess)
+14 errors, 0 warnings, 0 informations 
+Completed in 2.607sec
