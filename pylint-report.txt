@@ -1,0 +1,76 @@
+************* Module api
+api/__init__.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+************* Module api.main
+api/main.py:19:0: C0301: Line too long (106/100) (line-too-long)
+api/main.py:36:0: C0301: Line too long (119/100) (line-too-long)
+api/main.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+api/main.py:14:0: C0116: Missing function or method docstring (missing-function-docstring)
+api/main.py:19:0: C0116: Missing function or method docstring (missing-function-docstring)
+api/main.py:25:0: C0116: Missing function or method docstring (missing-function-docstring)
+api/main.py:36:0: C0116: Missing function or method docstring (missing-function-docstring)
+api/main.py:4:0: W0611: Unused AsyncSession imported from sqlalchemy.ext.asyncio (unused-import)
+************* Module api.test_all
+api/test_all.py:54:0: C0301: Line too long (119/100) (line-too-long)
+api/test_all.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+api/test_all.py:16:0: C0115: Missing class docstring (missing-class-docstring)
+api/test_all.py:20:4: C0116: Missing function or method docstring (missing-function-docstring)
+api/test_all.py:23:4: C0116: Missing function or method docstring (missing-function-docstring)
+api/test_all.py:26:4: C0116: Missing function or method docstring (missing-function-docstring)
+api/test_all.py:38:0: C0116: Missing function or method docstring (missing-function-docstring)
+api/test_all.py:43:0: C0116: Missing function or method docstring (missing-function-docstring)
+api/test_all.py:45:4: C0103: Variable name "alembicArgs" doesn't conform to snake_case naming style (invalid-name)
+api/test_all.py:59:0: C0116: Missing function or method docstring (missing-function-docstring)
+api/test_all.py:60:11: R0133: Comparison between constants: '1 != 0' has a constant value (comparison-of-constants)
+api/test_all.py:65:29: W0621: Redefining name 'fake_todo_repository' from outer scope (line 38) (redefined-outer-name)
+api/test_all.py:65:67: W0621: Redefining name 'todo_repository' from outer scope (line 43) (redefined-outer-name)
+api/test_all.py:90:0: C0116: Missing function or method docstring (missing-function-docstring)
+api/test_all.py:90:26: W0621: Redefining name 'todo_repository' from outer scope (line 43) (redefined-outer-name)
+api/test_all.py:109:0: C0116: Missing function or method docstring (missing-function-docstring)
+api/test_all.py:109:33: W0621: Redefining name 'todo_repository' from outer scope (line 43) (redefined-outer-name)
+api/test_all.py:129:0: C0116: Missing function or method docstring (missing-function-docstring)
+************* Module api.repository
+api/repository.py:137:0: C0305: Trailing newlines (trailing-newlines)
+api/repository.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+api/repository.py:7:0: E0611: No name 'create_async_engine' in module 'sqlalchemy' (no-name-in-module)
+api/repository.py:9:0: E0611: No name 'create_async_session' in module 'sqlalchemy.ext.asyncio' (no-name-in-module)
+api/repository.py:17:0: C0116: Missing function or method docstring (missing-function-docstring)
+api/repository.py:21:0: C0115: Missing class docstring (missing-class-docstring)
+api/repository.py:21:0: R0903: Too few public methods (0/2) (too-few-public-methods)
+api/repository.py:30:0: C0115: Missing class docstring (missing-class-docstring)
+api/repository.py:36:0: C0115: Missing class docstring (missing-class-docstring)
+api/repository.py:43:0: C0115: Missing class docstring (missing-class-docstring)
+api/repository.py:50:4: C0116: Missing function or method docstring (missing-function-docstring)
+api/repository.py:53:4: C0116: Missing function or method docstring (missing-function-docstring)
+api/repository.py:56:4: C0116: Missing function or method docstring (missing-function-docstring)
+api/repository.py:60:0: C0115: Missing class docstring (missing-class-docstring)
+api/repository.py:81:0: C0115: Missing class docstring (missing-class-docstring)
+api/repository.py:126:0: C0116: Missing function or method docstring (missing-function-docstring)
+api/repository.py:10:0: W0611: Unused sessionmaker imported from sqlalchemy.orm (unused-import)
+api/repository.py:1:0: R0801: Similar lines in 2 files
+==api.repository:[61:80]
+==api.test_all:[17:38]
+        self.data = {}
+
+    async def save(self, todo: Todo) -> None:
+        self.data[todo.key] = todo
+
+    async def get_by_key(self, key: str) -> Optional[Todo]:
+        return self.data.get(key)
+
+    async def get(self, todo_filter: TodoFilter) -> List[Todo]:
+        all_matching_todos = filter(
+            lambda todo: (not todo_filter.key_contains or todo_filter.key_contains in todo.key)
+            and (not todo_filter.value_contains or todo_filter.value_contains in todo.value)
+            and (not todo_filter.done or todo_filter.done == todo.done),
+            self.data.values(),
+        )
+
+        return list(all_matching_todos)[: todo_filter.limit]
+
+
+@pytest.fixture
+def fake_todo_repository(): (duplicate-code)
+
+------------------------------------------------------------------
+Your code has been rated at 7.30/10 (previous run: 7.97/10, -0.67)
+

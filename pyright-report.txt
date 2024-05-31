@@ -1,0 +1,28 @@
+No configuration file found.
+pyproject.toml file found at /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template.
+Loading pyproject.toml file at /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/pyproject.toml
+Assuming Python platform Linux
+Searching for source files
+Found 6 source files
+pyright 1.1.303
+/home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/main.py
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/main.py:15:29 - error: Argument of type "str | None" cannot be assigned to parameter "url" of type "str | URL" in function "__init__"
+    Type "str | None" cannot be assigned to type "str | URL"
+      Type "None" cannot be assigned to type "str | URL"
+        Type "None" cannot be assigned to type "str"
+        Type "None" cannot be assigned to type "URL" (reportGeneralTypeIssues)
+/home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:125:2 - error: Argument of type "() -> Coroutine[Any, Any, Iterator[TodoRepository]]" cannot be assigned to parameter "func" of type "(**_P@asynccontextmanager) -> AsyncIterator[_T_co@asynccontextmanager]" in function "asynccontextmanager"
+    Type "() -> Coroutine[Any, Any, Iterator[TodoRepository]]" cannot be assigned to type "(**_P@asynccontextmanager) -> AsyncIterator[_T_co@asynccontextmanager]"
+      Function return type "Coroutine[Any, Any, Iterator[TodoRepository]]" is incompatible with type "AsyncIterator[_T_co@asynccontextmanager]"
+        "Coroutine[Any, Any, Iterator[TodoRepository]]" is incompatible with protocol "AsyncIterator[_T_co@asynccontextmanager]"
+          "__anext__" is not present
+          "__aiter__" is not present (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:9:50 - error: "create_async_session" is unknown import symbol (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:100:40 - error: Cannot access member "query" for type "AsyncSession"
+    Member "query" is unknown (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:108:31 - error: Cannot access member "query" for type "AsyncSession"
+    Member "query" is unknown (reportGeneralTypeIssues)
+  /home/stevreeper/code/projects/school/mestrado/migration-repos/fastapi-template/api/repository.py:126:39 - error: Return type of async generator function must be "AsyncGenerator" or "AsyncIterable" (reportGeneralTypeIssues)
+6 errors, 0 warnings, 0 informations 
+Completed in 2.281sec
