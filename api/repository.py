@@ -1,30 +1,30 @@
+from __future__ import annotations
+
 import os
 from functools import lru_cache
-from typing import Iterator, List, Optional
-from contextlib import asynccontextmanager
+from typing import Any, AsyncGenerator, List, Optional
 
 from pydantic import BaseModel
-from sqlalchemy import Boolean, Column, Integer, String, create_async_engine
+from sqlalchemy import Boolean, Integer, NullPool, String, select
 from sqlalchemy.exc import DatabaseError
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_session
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
 SQL_BASE = declarative_base()
 
 
 @lru_cache(maxsize=None)
 def get_engine(db_string: str):
-    return create_async_engine(db_string, pool_pre_ping=True, pollclass=NullPool)
+    return create_async_engine(db_string, pool_pre_ping=True, poolclass=NullPool)
 
 
 class TodoInDB(SQL_BASE):  # type: ignore
     __tablename__ = "todo"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    key = Column(String(length=128), nullable=False, unique=True)
-    value = Column(String(length=128), nullable=False)
-    done = Column(Boolean, default=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(length=128), nullable=False, unique=True)
+    value: Mapped[str] = mapped_column(String(length=128), nullable=False)
+    done: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Todo(BaseModel):
@@ -57,7 +57,7 @@ class TodoRepository:  # Interface
         raise NotImplementedError()
 
 
-class InMemoryTodoRepository(TodoRepository):  # In-memory implementation of interface
+class InMemoryTodoRepository:  # In-memory implementation of interface
     def __init__(self):
         self.data = {}
 
@@ -79,10 +79,10 @@ class InMemoryTodoRepository(TodoRepository):  # In-memory implementation of int
 
 
 class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
-    def __init__(self, session):
+    def __init__(self, session: AsyncSession):
         self._session: AsyncSession = session
 
-    async def __aexit__(self, exc_type, exc_value: str, exc_traceback: str) -> None:
+    async def __aexit__(self, exc_type: Any, exc_value: str, exc_traceback: str) -> None:
         if any([exc_type, exc_value, exc_traceback]):
             await self._session.rollback()
             return
@@ -97,7 +97,8 @@ class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
         self._session.add(TodoInDB(key=todo.key, value=todo.value))
 
     async def get_by_key(self, key: str) -> Optional[Todo]:
-        instance = await self._session.query(TodoInDB).filter(TodoInDB.key == key).first()
+        result = await self._session.execute(select(TodoInDB).where(TodoInDB.key == key))
+        instance = result.scalars().first()
 
         if instance:
             return Todo(key=instance.key, value=instance.value, done=instance.done)
@@ -105,26 +106,27 @@ class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
         return None
 
     async def get(self, todo_filter: TodoFilter) -> List[Todo]:
-        query = self._session.query(TodoInDB)
+        stmt = select(TodoInDB)
 
         if todo_filter.key_contains is not None:
-            query = query.filter(TodoInDB.key.contains(todo_filter.key_contains))
+            stmt = stmt.where(TodoInDB.key.contains(todo_filter.key_contains))
 
         if todo_filter.value_contains is not None:
-            query = query.filter(TodoInDB.value.contains(todo_filter.value_contains))
+            stmt = stmt.where(TodoInDB.value.contains(todo_filter.value_contains))
 
         if todo_filter.done is not None:
-            query = query.filter(TodoInDB.done == todo_filter.done)
+            stmt = stmt.where(TodoInDB.done == todo_filter.done)
 
         if todo_filter.limit is not None:
-            query = query.limit(todo_filter.limit)
+            stmt = stmt.limit(todo_filter.limit)
 
-        return [Todo(key=todo.key, value=todo.value, done=todo.done) for todo in query]
+        result = await self._session.execute(stmt)
+
+        return [Todo(key=todo.key, value=todo.value, done=todo.done) for todo in result.scalars()]
 
 
-@asynccontextmanager
-async def create_todo_repository() -> Iterator[TodoRepository]:
-    async with create_async_session(get_engine(os.getenv("DB_STRING"))) as session:
+async def create_todo_repository() -> AsyncGenerator[SQLTodoRepository, Any]:
+    async with AsyncSession(get_engine(os.getenv("DB_STRING"))) as session:
         todo_repository = SQLTodoRepository(session)
 
         try:
@@ -134,4 +136,3 @@ async def create_todo_repository() -> Iterator[TodoRepository]:
             raise
         finally:
             await session.close()
-
