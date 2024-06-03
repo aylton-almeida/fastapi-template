@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import Iterator, List, Optional
+from typing import Any, AsyncGenerator, List, Optional
 
 from pydantic import BaseModel
-from sqlalchemy import Boolean, Column, Integer, String, select
+from sqlalchemy import Boolean, Integer, NullPool, String, select
 from sqlalchemy.exc import DatabaseError
-from sqlalchemy.orm import Mapped, mapped_column, Session, declarative_base, sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
 SQL_BASE = declarative_base()
 
@@ -58,11 +57,32 @@ class TodoRepository:  # Interface
         raise NotImplementedError()
 
 
-class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
-    def __init__(self, session):
-        self._session: Session = session
+class InMemoryTodoRepository:  # In-memory implementation of interface
+    def __init__(self):
+        self.data = {}
 
-    async def __aexit__(self, exc_type, exc_value: str, exc_traceback: str) -> None:
+    async def save(self, todo: Todo) -> None:
+        self.data[todo.key] = todo
+
+    async def get_by_key(self, key: str) -> Optional[Todo]:
+        return self.data.get(key)
+
+    async def get(self, todo_filter: TodoFilter) -> List[Todo]:
+        all_matching_todos = filter(
+            lambda todo: (not todo_filter.key_contains or todo_filter.key_contains in todo.key)
+            and (not todo_filter.value_contains or todo_filter.value_contains in todo.value)
+            and (not todo_filter.done or todo_filter.done == todo.done),
+            self.data.values(),
+        )
+
+        return list(all_matching_todos)[: todo_filter.limit]
+
+
+class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
+    def __init__(self, session: AsyncSession):
+        self._session: AsyncSession = session
+
+    async def __aexit__(self, exc_type: Any, exc_value: str, exc_traceback: str) -> None:
         if any([exc_type, exc_value, exc_traceback]):
             await self._session.rollback()
             return
@@ -77,9 +97,7 @@ class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
         self._session.add(TodoInDB(key=todo.key, value=todo.value))
 
     async def get_by_key(self, key: str) -> Optional[Todo]:
-        result = await self._session.execute(
-            select(TodoInDB).where(TodoInDB.key == key)
-        )
+        result = await self._session.execute(select(TodoInDB).where(TodoInDB.key == key))
         instance = result.scalars().first()
 
         if instance:
@@ -107,7 +125,7 @@ class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
         return [Todo(key=todo.key, value=todo.value, done=todo.done) for todo in result.scalars()]
 
 
-async def create_todo_repository() -> Iterator[TodoRepository]:
+async def create_todo_repository() -> AsyncGenerator[SQLTodoRepository, Any]:
     async with AsyncSession(get_engine(os.getenv("DB_STRING"))) as session:
         todo_repository = SQLTodoRepository(session)
 
@@ -118,4 +136,3 @@ async def create_todo_repository() -> Iterator[TodoRepository]:
             raise
         finally:
             await session.close()
-

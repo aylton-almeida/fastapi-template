@@ -1,7 +1,6 @@
 from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import RedirectResponse
 from starlette.status import HTTP_201_CREATED
 
@@ -12,7 +11,11 @@ app = FastAPI(swagger_ui_parameters={"tryItOutEnabled": True})
 
 @app.get("/")
 async def root():
-    return RedirectResponse(app.docs_url)
+
+    if app.docs_url:
+        return RedirectResponse(app.docs_url)
+
+    return None
 
 
 @app.post("/create/{key}", status_code=HTTP_201_CREATED)
