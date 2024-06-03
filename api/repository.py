@@ -1,20 +1,21 @@
+from __future__ import annotations
+
 import os
 from functools import lru_cache
-from typing import Iterator, List, Optional
+from typing import Any, AsyncGenerator, List, Optional
 
 from pydantic import BaseModel
-from sqlalchemy import Boolean, Integer, String, create_async_engine, select
+from sqlalchemy import Boolean, Integer, NullPool, String, select
 from sqlalchemy.exc import DatabaseError
-from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session, async_sessionmaker
-from sqlalchemy.future import select
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
-SQL_BASE = DeclarativeBase()
+SQL_BASE = declarative_base()
 
 
 @lru_cache(maxsize=None)
-async def get_engine(db_string: str):
-    return create_async_engine(db_string, pool_pre_ping=True)
+def get_engine(db_string: str):
+    return create_async_engine(db_string, pool_pre_ping=True, poolclass=NullPool)
 
 
 class TodoInDB(SQL_BASE):  # type: ignore
@@ -56,7 +57,7 @@ class TodoRepository:  # Interface
         raise NotImplementedError()
 
 
-class InMemoryTodoRepository(TodoRepository):  # In-memory implementation of interface
+class InMemoryTodoRepository:  # In-memory implementation of interface
     def __init__(self):
         self.data = {}
 
@@ -78,10 +79,10 @@ class InMemoryTodoRepository(TodoRepository):  # In-memory implementation of int
 
 
 class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
-    def __init__(self, session):
+    def __init__(self, session: AsyncSession):
         self._session: AsyncSession = session
 
-    async def __aexit__(self, exc_type, exc_value: str, exc_traceback: str) -> None:
+    async def __aexit__(self, exc_type: Any, exc_value: str, exc_traceback: str) -> None:
         if any([exc_type, exc_value, exc_traceback]):
             await self._session.rollback()
             return
@@ -96,7 +97,7 @@ class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
         self._session.add(TodoInDB(key=todo.key, value=todo.value))
 
     async def get_by_key(self, key: str) -> Optional[Todo]:
-        result = await self._session.execute(select(TodoInDB).filter(TodoInDB.key == key))
+        result = await self._session.execute(select(TodoInDB).where(TodoInDB.key == key))
         instance = result.scalars().first()
 
         if instance:
@@ -108,13 +109,13 @@ class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
         stmt = select(TodoInDB)
 
         if todo_filter.key_contains is not None:
-            stmt = stmt.filter(TodoInDB.key.contains(todo_filter.key_contains))
+            stmt = stmt.where(TodoInDB.key.contains(todo_filter.key_contains))
 
         if todo_filter.value_contains is not None:
-            stmt = stmt.filter(TodoInDB.value.contains(todo_filter.value_contains))
+            stmt = stmt.where(TodoInDB.value.contains(todo_filter.value_contains))
 
         if todo_filter.done is not None:
-            stmt = stmt.filter(TodoInDB.done == todo_filter.done)
+            stmt = stmt.where(TodoInDB.done == todo_filter.done)
 
         if todo_filter.limit is not None:
             stmt = stmt.limit(todo_filter.limit)
@@ -124,10 +125,8 @@ class SQLTodoRepository(TodoRepository):  # SQL Implementation of interface
         return [Todo(key=todo.key, value=todo.value, done=todo.done) for todo in result.scalars()]
 
 
-async def create_todo_repository() -> Iterator[TodoRepository]:
-    engine = await get_engine(os.getenv("DB_STRING"))
-    async_session = async_sessionmaker(engine, expire_on_commit=False)
-    async with async_session() as session:
+async def create_todo_repository() -> AsyncGenerator[SQLTodoRepository, Any]:
+    async with AsyncSession(get_engine(os.getenv("DB_STRING"))) as session:
         todo_repository = SQLTodoRepository(session)
 
         try:
@@ -137,4 +136,3 @@ async def create_todo_repository() -> Iterator[TodoRepository]:
             raise
         finally:
             await session.close()
-
