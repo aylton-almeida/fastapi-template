@@ -1,94 +1,47 @@
 import os
 import time
-import asyncio
 from typing import List, Optional
 
 import alembic.config
 import pytest
-from sqlalchemy import create_engine, Column, String, Boolean, ForeignKey, func
+from sqlalchemy import create_engine, select
 from sqlalchemy.exc import DataError, IntegrityError
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.future import select
-from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Mapped, mapped_column
+from sqlalchemy.orm import sessionmaker, selectinload
 from starlette.testclient import TestClient
 
 from api.main import app
 from api.repository import (
     SQL_BASE,
     InMemoryTodoRepository,
+    SQLTodoRepository,
+    Todo,
     TodoFilter,
-    get_engine,
+    TodoRepository,
 )
 
 
-Base = declarative_base()
-
-
-class Todo(Base):
-    __tablename__ = "todos"
-
-    key: Mapped[str] = mapped_column(String, primary_key=True)
-    value: Mapped[Optional[str]] = mapped_column(String)
-    done: Mapped[bool] = mapped_column(Boolean, default=False)
-
-
-class TodoRepository:
-    async def save(self, todo: Todo) -> None:
-        raise NotImplementedError
-
-    async def get_by_key(self, key: str) -> Optional[Todo]:
-        raise NotImplementedError
-
-    async def get(self, filter: TodoFilter) -> List[Todo]:
-        raise NotImplementedError
-
-
-class SQLTodoRepository(TodoRepository):
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def save(self, todo: Todo) -> None:
-        self.session.add(todo)
-        await self.session.commit()
-
-    async def get_by_key(self, key: str) -> Optional[Todo]:
-        result = await self.session.execute(select(Todo).filter_by(key=key))
-        return result.scalars().first()
-
-    async def get(self, filter: TodoFilter) -> List[Todo]:
-        query = select(Todo)
-        if filter.key_contains:
-            query = query.filter(Todo.key.contains(filter.key_contains))
-        if filter.value_contains:
-            query = query.filter(Todo.value.contains(filter.value_contains))
-        if filter.done is not None:
-            query = query.filter(Todo.done == filter.done)
-        if filter.limit:
-            query = query.limit(filter.limit)
-        result = await self.session.execute(query)
-        return result.scalars().all()
-
-
 @pytest.fixture
-async def fake_todo_repository():
+async def fake_todo_repository() -> InMemoryTodoRepository:
     return InMemoryTodoRepository()
 
 
 @pytest.fixture
-async def todo_repository():
+async def todo_repository() -> SQLTodoRepository:
     time.sleep(1)
     alembicArgs = ["--raiseerr", "upgrade", "head"]
     alembic.config.main(argv=alembicArgs)
 
     engine = create_async_engine(os.getenv("DB_STRING"))
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async_session = sessionmaker(engine, class_=AsyncSession)
 
     async with async_session() as session:
         yield SQLTodoRepository(session)
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+        await session.execute(
+            ";".join([f"TRUNCATE TABLE {t} CASCADE" for t in SQL_BASE.metadata.tables.keys()])
+        )
 
 
 @pytest.mark.unit
@@ -119,35 +72,39 @@ async def test_contract_test(fake_todo_repository: TodoRepository, todo_reposito
 
 @pytest.mark.integration
 async def test_repository(todo_repository: SQLTodoRepository):
-    await todo_repository.save(Todo(key="testkey", value="testvalue"))
+    async with todo_repository as r:
+        await r.save(Todo(key="testkey", value="testvalue"))
 
-    todo = await todo_repository.get_by_key("testkey")
+    todo = await r.get_by_key("testkey")
     assert todo.value == "testvalue"
 
     with pytest.raises(IntegrityError):
-        await todo_repository.save(Todo(key="testkey", value="not allowed: unique todo keys!"))
+        async with todo_repository as r:
+            await r.save(Todo(key="testkey", value="not allowed: unique todo keys!"))
 
     with pytest.raises(DataError):
-        await todo_repository.save(Todo(key="too long", value=129 * "x"))
+        async with todo_repository as r:
+            await r.save(Todo(key="too long", value=129 * "x"))
 
 
 @pytest.mark.integration
 async def test_repository_filter(todo_repository: SQLTodoRepository):
-    await todo_repository.save(Todo(key="testkey", value="testvalue"))
-    await todo_repository.save(Todo(key="abcde", value="v"))
+    async with todo_repository as repo:
+        await repo.save(Todo(key="testkey", value="testvalue"))
+        await repo.save(Todo(key="abcde", value="v"))
 
-    todos = await todo_repository.get(TodoFilter(key_contains="test"))
+    todos = await repo.get(TodoFilter(key_contains="test"))
     assert len(todos) == 1
     assert todos[0].value == "testvalue"
 
-    todos = await todo_repository.get(TodoFilter(key_contains="abcde"))
+    todos = await repo.get(TodoFilter(key_contains="abcde"))
     assert len(todos) == 1
     assert todos[0].value == "v"
 
-    assert len(await todo_repository.get(TodoFilter(key_contains="e"))) == 2
-    assert len(await todo_repository.get(TodoFilter(key_contains="e", limit=1))) == 1
-    assert len(await todo_repository.get(TodoFilter(value_contains="v"))) == 2
-    assert len(await todo_repository.get(TodoFilter(done=True))) == 0
+    assert len(await repo.get(TodoFilter(key_contains="e"))) == 2
+    assert len(await repo.get(TodoFilter(key_contains="e", limit=1))) == 1
+    assert len(await repo.get(TodoFilter(value_contains="v"))) == 2
+    assert len(await repo.get(TodoFilter(done=True))) == 0
 
 
 @pytest.mark.integration
@@ -164,4 +121,3 @@ def test_api():
 
     response = client.get("/get/wrong")
     assert response.status_code == 404
-
