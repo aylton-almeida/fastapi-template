@@ -1,12 +1,14 @@
 import os
 import time
-from typing import Generator
+from typing import List, Optional
 
 import alembic.config
 import pytest
+from sqlalchemy import create_engine, ForeignKey, func
 from sqlalchemy.exc import DataError, IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import sessionmaker, selectinload, relationship
 from starlette.testclient import TestClient
 
 from api.main import app
@@ -17,29 +19,27 @@ from api.repository import (
     Todo,
     TodoFilter,
     TodoRepository,
+    get_engine,
 )
 
 
 @pytest.fixture
-def fake_todo_repository() -> InMemoryTodoRepository:
+async def fake_todo_repository() -> InMemoryTodoRepository:
     return InMemoryTodoRepository()
 
 
 @pytest.fixture
-async def todo_repository() -> Generator[SQLTodoRepository, None, None]:
+async def todo_repository() -> SQLTodoRepository:
     time.sleep(1)
     alembicArgs = ["--raiseerr", "upgrade", "head"]
     alembic.config.main(argv=alembicArgs)
 
     engine = create_async_engine(os.getenv("DB_STRING"))
-    async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-    session = async_session()
-
-    yield SQLTodoRepository(session)
-
-    await session.close()
+    async_session = sessionmaker(engine, class_=AsyncSession)
 
     async with async_session() as session:
+        yield SQLTodoRepository(session)
+
         await session.execute(
             ";".join([f"TRUNCATE TABLE {t} CASCADE" for t in SQL_BASE.metadata.tables.keys()])
         )
